@@ -1,0 +1,1525 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SEMARANG CITY TRAINS - Petualangan Masinis Cilik</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter & Fredoka for playful children learning style -->
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        * {
+            font-family: 'Fredoka', 'Plus Jakarta Sans', sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body {
+            background-color: #0f172a;
+            color: #1e293b;
+            overflow-x: hidden;
+        }
+
+        /* 16:9 Responsive Container Aspect Ratio */
+        .game-viewport {
+            width: 100%;
+            max-width: 1280px;
+            aspect-ratio: 16 / 9;
+            margin: 0 auto;
+            position: relative;
+            background: linear-gradient(135deg, #e0f2fe 0%, #f0fdf4 100%);
+            border-radius: 1.5rem;
+            overflow: hidden;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4);
+            border: 4px solid #38bdf8;
+        }
+
+        @media (max-aspect-ratio: 16/9) {
+            .game-viewport {
+                aspect-ratio: auto;
+                min-height: 92vh;
+            }
+        }
+
+        /* Custom Scrollbars */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 8px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #0284c7;
+            border-radius: 8px;
+        }
+
+        /* Flip Card Animation */
+        .perspective-1000 {
+            perspective: 1000px;
+        }
+        .transform-style-3d {
+            transform-style: preserve-3d;
+            transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .backface-hidden {
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
+        }
+        .rotate-y-180 {
+            transform: rotateY(180deg);
+        }
+
+        /* Cartoon Shadows and Buttons */
+        .btn-cartoon {
+            transition: all 0.15s ease;
+            box-shadow: 0 6px 0 rgba(0,0,0,0.25);
+            position: relative;
+            top: 0;
+        }
+        .btn-cartoon:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 0 rgba(0,0,0,0.25);
+        }
+        .btn-cartoon:active {
+            transform: translateY(4px);
+            box-shadow: 0 2px 0 rgba(0,0,0,0.25);
+        }
+
+        /* Keyframe Animations */
+        @keyframes floatSlow {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-10px) rotate(1deg); }
+        }
+        .animate-float {
+            animation: floatSlow 3s ease-in-out infinite;
+        }
+
+        @keyframes trainChug {
+            0% { transform: translateX(0) translateY(0); }
+            25% { transform: translateX(2px) translateY(-3px); }
+            50% { transform: translateX(0) translateY(0); }
+            75% { transform: translateX(-2px) translateY(-2px); }
+            100% { transform: translateX(0) translateY(0); }
+        }
+        .animate-train {
+            animation: trainChug 0.8s ease-in-out infinite;
+        }
+
+        @keyframes puffSmoke {
+            0% { transform: scale(0.3) translateY(0) opacity(0.8); opacity: 0.8; }
+            100% { transform: scale(1.5) translateY(-40px) opacity(0); opacity: 0; }
+        }
+        .smoke-puff {
+            animation: puffSmoke 1.5s ease-out infinite;
+        }
+
+        @keyframes pulseGlow {
+            0%, 100% { filter: drop-shadow(0 0 5px rgba(250, 204, 21, 0.8)); }
+            50% { filter: drop-shadow(0 0 20px rgba(250, 204, 21, 1)); }
+        }
+        .pulse-glow {
+            animation: pulseGlow 2s infinite;
+        }
+
+        /* Canvas Confetti Layer */
+        #confettiCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        /* Drag and Drop visual feedback */
+        .draggable-item {
+            cursor: grab;
+            touch-action: none;
+        }
+        .draggable-item:active {
+            cursor: grabbing;
+        }
+        .drop-target-active {
+            border-color: #0284c7 !important;
+            background-color: #e0f2fe !important;
+            transform: scale(1.02);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-2 sm:p-4 bg-slate-900 text-slate-800">
+
+    <div id="gameViewport" class="game-viewport flex flex-col justify-between select-none overflow-hidden relative">
+        <canvas id="confettiCanvas"></canvas>
+
+        <!-- TOP BAR / HEADER NAV (Hidden on splash) -->
+        <header id="topNav" class="hidden bg-slate-900/90 backdrop-blur text-white px-4 py-2 z-30 flex items-center justify-between border-b-4 border-amber-400">
+            <div class="flex items-center space-x-3">
+                <button onclick="navigateTo('map')" class="btn-cartoon bg-sky-500 hover:bg-sky-400 text-white font-bold py-1 px-3 rounded-xl text-sm flex items-center gap-1 border-2 border-white">
+                    <i class="fa-solid fa-map"></i> <span class="hidden sm:inline">Peta Semarang</span>
+                </button>
+                <div class="bg-slate-800 px-3 py-1 rounded-xl border border-slate-700 flex items-center gap-2">
+                    <i class="fa-solid fa-train text-amber-400"></i>
+                    <span class="text-xs font-semibold text-slate-300 hidden md:inline">STASIUN:</span>
+                    <span id="currentStationName" class="text-xs sm:text-sm font-bold text-amber-300">Semarang</span>
+                </div>
+            </div>
+
+            <!-- Progress & Score -->
+            <div class="flex items-center space-x-2 sm:space-x-4">
+                <div class="flex items-center gap-2 bg-slate-800 px-3 py-1 rounded-xl border border-slate-700">
+                    <i class="fa-solid fa-star text-yellow-400 text-base animate-pulse"></i>
+                    <span id="scoreDisplay" class="font-bold text-yellow-400 text-sm sm:text-base">0 Poin</span>
+                </div>
+                
+                <div class="hidden sm:flex flex-col w-28 md:w-36">
+                    <div class="flex justify-between text-xs font-bold mb-1">
+                        <span class="text-slate-300">PROGRESS</span>
+                        <span id="progressText" class="text-emerald-400">0/16</span>
+                    </div>
+                    <div class="w-full bg-slate-700 rounded-full h-2.5 overflow-hidden p-0.5 border border-slate-600">
+                        <div id="progressBar" class="bg-gradient-to-r from-emerald-400 to-teal-300 h-full rounded-full transition-all duration-500" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <!-- Audio Toggle -->
+                <button id="audioToggleBtn" onclick="toggleAudio()" class="btn-cartoon bg-amber-500 hover:bg-amber-400 text-white font-bold p-2 rounded-xl text-sm border-2 border-white">
+                    <i id="audioIcon" class="fa-solid fa-volume-high"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- MAIN DYNAMIC CONTENT CONTAINER -->
+        <main id="mainContainer" class="flex-1 relative overflow-y-auto overflow-x-hidden flex flex-col justify-center items-center p-3 sm:p-6">
+            <!-- Dynamic Screens will be injected here via JavaScript -->
+        </main>
+
+        <!-- REUSABLE SUCCESS / ALERT MODAL -->
+        <div id="gameModal" class="hidden absolute inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div id="modalCard" class="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full border-4 border-amber-400 shadow-2xl text-center transform transition-all duration-300 scale-90 opacity-0">
+                <div id="modalIcon" class="w-20 h-20 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4 text-4xl text-amber-500 shadow-inner">
+                    🌟
+                </div>
+                <h2 id="modalTitle" class="text-2xl font-black text-slate-800 mb-2">Hebat Sekali!</h2>
+                <p id="modalBody" class="text-slate-600 font-semibold mb-6">Kamu telah berhasil menyelesaikan misi ini!</p>
+                <div id="modalButtons" class="flex justify-center gap-3">
+                    <button onclick="closeModal()" class="btn-cartoon bg-sky-500 hover:bg-sky-400 text-white font-bold py-2.5 px-6 rounded-2xl border-2 border-white text-base">
+                        Lanjut
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class SoundEngine {
+            constructor() {
+                this.ctx = null;
+                this.muted = false;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    this.ctx = new AudioContext();
+                }
+            }
+
+            playClick() {
+                if (this.muted) return;
+                this.init();
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(600, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(300, this.ctx.currentTime + 0.08);
+                gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.08);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.08);
+            }
+
+            playWhistle() {
+                if (this.muted) return;
+                this.init();
+                const now = this.ctx.currentTime;
+                
+                // Two sine waves for harmonic train whistle sound
+                [523.25, 659.25, 783.99].forEach((freq, idx) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(freq, now);
+                    
+                    gain.gain.setValueAtTime(0, now);
+                    gain.gain.linearRampToValueAtTime(0.15, now + 0.1);
+                    gain.gain.linearRampToValueAtTime(0.12, now + 0.4);
+                    gain.gain.linearRampToValueAtTime(0, now + 0.8);
+
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.8);
+                });
+            }
+
+            playCorrect() {
+                if (this.muted) return;
+                this.init();
+                const now = this.ctx.currentTime;
+                const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+                notes.forEach((note, i) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(note, now + i * 0.08);
+                    gain.gain.setValueAtTime(0.2, now + i * 0.08);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.08 + 0.25);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(now + i * 0.08);
+                    osc.stop(now + i * 0.08 + 0.25);
+                });
+            }
+
+            playWrong() {
+                if (this.muted) return;
+                this.init();
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(220, now);
+                osc.frequency.setValueAtTime(180, now + 0.15);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.35);
+            }
+
+            playFanfare() {
+                if (this.muted) return;
+                this.init();
+                const now = this.ctx.currentTime;
+                const melody = [
+                    { f: 523.25, t: 0, d: 0.15 },
+                    { f: 523.25, t: 0.15, d: 0.15 },
+                    { f: 523.25, t: 0.30, d: 0.15 },
+                    { f: 659.25, t: 0.45, d: 0.35 },
+                    { f: 783.99, t: 0.85, d: 0.4 }
+                ];
+                melody.forEach(n => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(n.f, now + n.t);
+                    gain.gain.setValueAtTime(0.25, now + n.t);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + n.t + n.d);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(now + n.t);
+                    osc.stop(now + n.t + n.d);
+                });
+            }
+        }
+
+        const audio = new SoundEngine();
+
+        function toggleAudio() {
+            audio.muted = !audio.muted;
+            const btn = document.getElementById('audioToggleBtn');
+            const icon = document.getElementById('audioIcon');
+            if (audio.muted) {
+                icon.className = 'fa-solid fa-volume-xmark';
+                btn.classList.replace('bg-amber-500', 'bg-slate-500');
+            } else {
+                icon.className = 'fa-solid fa-volume-high';
+                btn.classList.replace('bg-slate-500', 'bg-amber-500');
+                audio.playClick();
+            }
+        }
+
+        const GAME_STATE = {
+            playerName: "Masinis Cilik",
+            score: 0,
+            completedStations: new Set(),
+            currentStationId: null,
+            pretestScore: 0,
+            evalScore: 0,
+            badges: new Set(),
+            reflection: {}
+        };
+
+        // 16 Kecamatan / Station Metadata
+        const STATIONS = [
+            { id: 'banyumanik', name: 'Banyumanik', label: 'Petunjuk Bermain', icon: 'fa-book-open', x: 45, y: 82 },
+            { id: 'candisari', name: 'Candisari', label: 'Tujuan Pembelajaran', icon: 'fa-bullseye', x: 52, y: 62 },
+            { id: 'gajahmungkur', name: 'Gajahmungkur', label: 'Pretest Masinis', icon: 'fa-clipboard-check', x: 42, y: 64 },
+            { id: 'gayamsari', name: 'Gayamsari', label: 'Rahasia Energi', icon: 'fa-lightbulb', x: 62, y: 50 },
+            { id: 'genuk', name: 'Genuk', label: 'Detektif Benda', icon: 'fa-magnifying-glass', x: 78, y: 35 },
+            { id: 'gunungpati', name: 'Gunungpati', label: 'Bentuk-Bentuk Energi', icon: 'fa-shapes', x: 28, y: 78 },
+            { id: 'mijen', name: 'Mijen', label: 'Energi Gerak', icon: 'fa-person-running', x: 15, y: 65 },
+            { id: 'ngaliyan', name: 'Ngaliyan', label: 'Energi Cahaya', icon: 'fa-sun', x: 25, y: 48 },
+            { id: 'pedurungan', name: 'Pedurungan', label: 'Energi Panas', icon: 'fa-fire', x: 72, y: 62 },
+            { id: 'semarang_barat', name: 'Semarang Barat', label: 'Energi Bunyi', icon: 'fa-volume-high', x: 38, y: 40 },
+            { id: 'semarang_selatan', name: 'Semarang Selatan', label: 'Energi Listrik', icon: 'fa-bolt', x: 50, y: 52 },
+            { id: 'semarang_tengah', name: 'Semarang Tengah', label: 'Energi Kimia', icon: 'fa-battery-full', x: 48, y: 42 },
+            { id: 'semarang_timur', name: 'Semarang Timur', label: 'Memory Pair', icon: 'fa-clone', x: 58, y: 40 },
+            { id: 'semarang_utara', name: 'Semarang Utara', label: 'Evaluasi Akhir', icon: 'fa-graduation-cap', x: 52, y: 28 },
+            { id: 'tembalang', name: 'Tembalang', label: 'Refleksi Siswa', icon: 'fa-comment-dots', x: 65, y: 75 },
+            { id: 'tugu', name: 'Tugu', label: 'Papan Skor & Penghargaan', icon: 'fa-trophy', x: 18, y: 32 }
+        ];
+
+        function triggerConfetti() {
+            const canvas = document.getElementById('confettiCanvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = canvas.parentElement.clientWidth;
+            canvas.height = canvas.parentElement.clientHeight;
+
+            const particles = [];
+            const colors = ['#f59e0b', '#10b981', '#3b82f6', '#ec4899', '#8b5cf6'];
+
+            for (let i = 0; i < 80; i++) {
+                particles.push({
+                    x: canvas.width / 2,
+                    y: canvas.height / 2,
+                    vx: (Math.random() - 0.5) * 12,
+                    vy: (Math.random() - 0.8) * 12,
+                    size: Math.random() * 8 + 4,
+                    color: colors[Math.floor(Math.random() * colors.length)],
+                    life: 100
+                });
+            }
+
+            function animate() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                let alive = false;
+                particles.forEach(p => {
+                    if (p.life > 0) {
+                        alive = true;
+                        p.x += p.vx;
+                        p.y += p.vy;
+                        p.vy += 0.2; // Gravity
+                        p.life -= 1.5;
+                        ctx.fillStyle = p.color;
+                        ctx.beginPath();
+                        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                });
+                if (alive) requestAnimationFrame(animate);
+            }
+            animate();
+        }
+
+        function showModal(title, bodyText, iconEmoji = '🎉', onNext = null) {
+            audio.playCorrect();
+            triggerConfetti();
+            const modal = document.getElementById('gameModal');
+            const card = document.getElementById('modalCard');
+            document.getElementById('modalTitle').innerText = title;
+            document.getElementById('modalBody').innerText = bodyText;
+            document.getElementById('modalIcon').innerText = iconEmoji;
+
+            const btnContainer = document.getElementById('modalButtons');
+            btnContainer.innerHTML = `
+                <button id="modalConfirmBtn" class="btn-cartoon bg-sky-500 hover:bg-sky-400 text-white font-bold py-2.5 px-6 rounded-2xl border-2 border-white text-base">
+                    Lanjut <i class="fa-solid fa-arrow-right ml-1"></i>
+                </button>
+            `;
+
+            document.getElementById('modalConfirmBtn').onclick = () => {
+                closeModal();
+                if (onNext) onNext();
+            };
+
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                card.classList.remove('scale-90', 'opacity-0');
+                card.classList.add('scale-100', 'opacity-100');
+            }, 10);
+        }
+
+        function closeModal() {
+            audio.playClick();
+            const modal = document.getElementById('gameModal');
+            const card = document.getElementById('modalCard');
+            card.classList.remove('scale-100', 'opacity-100');
+            card.classList.add('scale-90', 'opacity-0');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 200);
+        }
+
+        function updateUIHeader() {
+            document.getElementById('scoreDisplay').innerText = `${GAME_STATE.score} Poin`;
+            document.getElementById('progressText').innerText = `${GAME_STATE.completedStations.size}/16`;
+            const pct = (GAME_STATE.completedStations.size / 16) * 100;
+            document.getElementById('progressBar').style.width = `${pct}%`;
+
+            if (GAME_STATE.currentStationId) {
+                const st = STATIONS.find(s => s.id === GAME_STATE.currentStationId);
+                document.getElementById('currentStationName').innerText = st ? st.name : 'Semarang';
+            } else {
+                document.getElementById('currentStationName').innerText = 'Peta Semarang';
+            }
+        }
+
+        function awardPoints(pts) {
+            GAME_STATE.score += pts;
+            updateUIHeader();
+        }
+
+        function markStationComplete(stationId) {
+            GAME_STATE.completedStations.add(stationId);
+            checkBadges();
+            updateUIHeader();
+        }
+
+        function checkBadges() {
+            if (GAME_STATE.completedStations.size >= 1) GAME_STATE.badges.add('MASINIS_PEMULA');
+            if (GAME_STATE.completedStations.has('genuk')) GAME_STATE.badges.add('DETEKTIF_ENERGI');
+            if (GAME_STATE.completedStations.has('gunungpati')) GAME_STATE.badges.add('AHLI_ENERGI');
+            if (GAME_STATE.score >= 90) GAME_STATE.badges.add('MASINIS_HEBAT');
+            if (GAME_STATE.completedStations.size >= 16) GAME_STATE.badges.add('PENJELAJAH_SEMARANG');
+        }
+
+        function navigateTo(screenId) {
+            audio.playClick();
+            const main = document.getElementById('mainContainer');
+            const topNav = document.getElementById('topNav');
+
+            if (screenId === 'opening') {
+                topNav.classList.add('hidden');
+            } else {
+                topNav.classList.remove('hidden');
+            }
+
+            GAME_STATE.currentStationId = (screenId !== 'opening' && screenId !== 'map') ? screenId : null;
+            updateUIHeader();
+
+            main.innerHTML = ''; // Clear container
+
+            switch(screenId) {
+                case 'opening': renderOpeningScreen(main); break;
+                case 'map': renderMapScreen(main); break;
+                case 'banyumanik': renderBanyumanik(main); break;
+                case 'candisari': renderCandisari(main); break;
+                case 'gajahmungkur': renderGajahmungkur(main); break;
+                case 'gayamsari': renderGayamsari(main); break;
+                case 'genuk': renderGenuk(main); break;
+                case 'gunungpati': renderGunungpati(main); break;
+                case 'mijen': renderMijen(main); break;
+                case 'ngaliyan': renderNgaliyan(main); break;
+                case 'pedurungan': renderPedurungan(main); break;
+                case 'semarang_barat': renderSemarangBarat(main); break;
+                case 'semarang_selatan': renderSemarangSelatan(main); break;
+                case 'semarang_tengah': renderSemarangTengah(main); break;
+                case 'semarang_timur': renderSemarangTimur(main); break;
+                case 'semarang_utara': renderSemarangUtara(main); break;
+                case 'tembalang': renderTembalang(main); break;
+                case 'tugu': renderTugu(main); break;
+                default: renderMapScreen(main); break;
+            }
+        }
+
+        function renderOpeningScreen(container) {
+            container.innerHTML = `
+                <div class="flex flex-col items-center justify-center text-center max-w-3xl mx-auto my-auto py-4 px-2">
+                    <!-- Train Mascot SVG -->
+                    <div class="relative mb-4 animate-float">
+                        <div class="absolute -top-6 right-8 flex space-x-1">
+                            <div class="w-4 h-4 bg-slate-300 rounded-full smoke-puff"></div>
+                            <div class="w-6 h-6 bg-slate-200 rounded-full smoke-puff" style="animation-delay: 0.3s"></div>
+                        </div>
+                        <svg class="w-48 h-32 sm:w-64 sm:h-40 mx-auto drop-shadow-xl" viewBox="0 0 200 120" fill="none">
+                            <rect x="20" y="40" width="120" height="60" rx="12" fill="#0284c7" />
+                            <rect x="130" y="20" width="50" height="80" rx="10" fill="#0369a1" />
+                            <rect x="140" y="30" width="30" height="30" rx="6" fill="#fef08a" />
+                            <!-- Mascot Hat in window -->
+                            <circle cx="155" cy="45" r="8" fill="#f97316" />
+                            <rect x="25" y="25" width="20" height="25" rx="4" fill="#ea580c" />
+                            <circle cx="50" cy="100" r="14" fill="#334155" />
+                            <circle cx="50" cy="100" r="6" fill="#94a3b8" />
+                            <circle cx="100" cy="100" r="14" fill="#334155" />
+                            <circle cx="100" cy="100" r="6" fill="#94a3b8" />
+                            <circle cx="150" cy="100" r="14" fill="#334155" />
+                            <circle cx="150" cy="100" r="6" fill="#94a3b8" />
+                            <path d="M 10 100 L 190 100" stroke="#f59e0b" stroke-width="6" stroke-linecap="round" />
+                        </svg>
+                    </div>
+
+                    <h1 class="text-3xl sm:text-5xl font-black text-sky-900 tracking-tight mb-1 drop-shadow-sm">
+                        🚆 SEMARANG CITY TRAINS
+                    </h1>
+                    <p class="text-base sm:text-xl font-bold text-amber-600 mb-4">
+                        “Petualangan Masinis Cilik Mengungkap Rahasia Energi”
+                    </p>
+
+                    <div class="bg-white/80 backdrop-blur border-2 border-sky-300 p-4 sm:p-5 rounded-2xl shadow-lg mb-6 max-w-xl text-slate-700 text-xs sm:text-sm leading-relaxed">
+                        “Kota Semarang menyimpan sebuah rahasia. Banyak benda dapat bergerak, berbunyi, menyala, dan menghasilkan panas. Tapi apa yang membuat semua itu terjadi?”
+                        <br><br>
+                        <strong>Jadilah Masinis Cilik dan jelajahi 16 kecamatan untuk menemukan jawabannya!</strong>
+                    </div>
+
+                    <button onclick="audio.playWhistle(); navigateTo('map');" class="btn-cartoon bg-amber-500 hover:bg-amber-400 text-white text-lg sm:text-2xl font-black py-4 px-8 rounded-3xl border-4 border-white flex items-center gap-3 animate-bounce">
+                        <i class="fa-solid fa-play"></i> MULAI PETUALANGAN
+                    </button>
+                </div>
+            `;
+        }
+
+        function renderMapScreen(container) {
+            let stationNodesHTML = STATIONS.map((st, idx) => {
+                const isCompleted = GAME_STATE.completedStations.has(st.id);
+                // First station Banyumanik always available, others unlock as completed or sequentially
+                const isAvailable = idx === 0 || GAME_STATE.completedStations.has(STATIONS[idx-1].id) || isCompleted;
+
+                let stateClass = "bg-slate-400 border-slate-200 text-slate-600 opacity-80";
+                let statusBadge = `<i class="fa-solid fa-lock text-slate-500"></i>`;
+
+                if (isCompleted) {
+                    stateClass = "bg-emerald-500 border-emerald-200 text-white pulse-glow";
+                    statusBadge = `<i class="fa-solid fa-circle-check text-yellow-300"></i>`;
+                } else if (isAvailable) {
+                    stateClass = "bg-amber-500 border-amber-200 text-white animate-bounce";
+                    statusBadge = `<i class="fa-solid fa-play text-white"></i>`;
+                }
+
+                return `
+                    <button onclick="${isAvailable ? `navigateTo('${st.id}')` : `audio.playWrong()`}" 
+                            style="left: ${st.x}%; top: ${st.y}%; transform: translate(-50%, -50%);"
+                            class="absolute z-10 flex flex-col items-center group transition-all duration-300">
+                        <div class="w-9 h-9 sm:w-11 sm:h-11 rounded-2xl border-2 shadow-lg flex items-center justify-center text-sm sm:text-base ${stateClass}">
+                            <i class="fa-solid ${st.icon}"></i>
+                        </div>
+                        <div class="bg-slate-900/90 text-white text-[10px] sm:text-xs font-bold px-2 py-0.5 rounded-md mt-1 whitespace-nowrap shadow border border-slate-700 flex items-center gap-1">
+                            ${statusBadge} ${st.name}
+                        </div>
+                    </button>
+                `;
+            }).join('');
+
+            container.innerHTML = `
+                <div class="w-full h-full flex flex-col justify-between relative">
+                    <!-- Header Banner inside map -->
+                    <div class="flex justify-between items-center bg-white/80 backdrop-blur p-3 rounded-2xl border-2 border-sky-300 shadow-sm z-20">
+                        <div>
+                            <h2 class="text-base sm:text-lg font-black text-sky-900 flex items-center gap-2">
+                                <i class="fa-solid fa-map-location-dot text-amber-500"></i> Peta Stasiun Kota Semarang
+                            </h2>
+                            <p class="text-xs text-slate-600 hidden sm:block">Pilih stasiun yang menyala untuk memulai misi pembelajaran!</p>
+                        </div>
+                        <div class="text-xs font-bold bg-amber-100 text-amber-800 px-3 py-1.5 rounded-xl border border-amber-300">
+                            🏁 Total Stasiun: 16
+                        </div>
+                    </div>
+
+                    <!-- Cartoon Map Background Layer -->
+                    <div class="relative flex-1 w-full my-2 bg-gradient-to-br from-emerald-100 via-sky-100 to-amber-50 rounded-2xl border-2 border-sky-200 overflow-hidden shadow-inner min-h-[360px]">
+                        
+                        <!-- SVG Tracks connecting stations -->
+                        <svg class="absolute inset-0 w-full h-full pointer-events-none stroke-sky-400/60" stroke-width="4" stroke-dasharray="6 6">
+                            <path d="M 45% 82% L 52% 62% L 42% 64% L 28% 78% L 15% 65% L 25% 48% L 38% 40% L 18% 32% L 48% 42% L 50% 52% L 62% 50% L 58% 40% L 52% 28% L 78% 35% L 72% 62% L 65% 75%" fill="none" />
+                        </svg>
+
+                        <!-- Landmarks Background Illustrations -->
+                        <div class="absolute left-[45%] top-[40%] opacity-20 text-4xl text-slate-600 pointer-events-none flex flex-col items-center">
+                            <i class="fa-solid fa-building-columns"></i>
+                            <span class="text-[9px] font-bold">Simpang Lima</span>
+                        </div>
+                        <div class="absolute left-[18%] top-[25%] opacity-20 text-4xl text-slate-600 pointer-events-none flex flex-col items-center">
+                            <i class="fa-solid fa-torii-gate"></i>
+                            <span class="text-[9px] font-bold">Tugu Muda</span>
+                        </div>
+
+                        <!-- Station Buttons -->
+                        ${stationNodesHTML}
+                    </div>
+
+                    <!-- Map Footer Navigation -->
+                    <div class="flex justify-between items-center text-xs text-slate-600 px-2">
+                        <span>💡 Tip: Selesaikan misi secara berurutan untuk mengumpulkan semua bintang!</span>
+                        <button onclick="navigateTo('opening')" class="text-sky-700 hover:underline font-bold">
+                            <i class="fa-solid fa-house"></i> Kembali ke Menu Utama
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderBanyumanik(container) {
+            container.innerHTML = `
+                <div class="max-w-2xl mx-auto bg-white rounded-3xl p-5 sm:p-7 border-4 border-sky-400 shadow-xl flex flex-col items-center text-center">
+                    <span class="bg-sky-100 text-sky-800 font-bold px-4 py-1 rounded-full text-xs sm:text-sm mb-2 border border-sky-300">
+                        🚉 STASIUN BANYUMANIK
+                    </span>
+                    <h2 class="text-2xl sm:text-3xl font-black text-slate-800 mb-1">
+                        “Sebelum berangkat, kenali cara bermain!”
+                    </h2>
+                    <p class="text-slate-500 text-xs sm:text-sm mb-4">Pelajari langkah-langkah petualangan masinis cilik berikut ini:</p>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-left w-full mb-6">
+                        <div class="bg-amber-50 p-3 rounded-2xl border border-amber-200 flex items-start gap-3">
+                            <div class="text-2xl">🚆</div>
+                            <div class="text-xs sm:text-sm"><strong>Pilih Stasiun:</strong> Klik stasiun di peta Kota Semarang.</div>
+                        </div>
+                        <div class="bg-sky-50 p-3 rounded-2xl border border-sky-200 flex items-start gap-3">
+                            <div class="text-2xl">👀</div>
+                            <div class="text-xs sm:text-sm"><strong>Pelajari Materi:</strong> Simak rahasia bentuk energi.</div>
+                        </div>
+                        <div class="bg-emerald-50 p-3 rounded-2xl border border-emerald-200 flex items-start gap-3">
+                            <div class="text-2xl">🎮</div>
+                            <div class="text-xs sm:text-sm"><strong>Mini-Game:</strong> Selesaikan tantangan interaktif.</div>
+                        </div>
+                        <div class="bg-purple-50 p-3 rounded-2xl border border-purple-200 flex items-start gap-3">
+                            <div class="text-2xl">⭐</div>
+                            <div class="text-xs sm:text-sm"><strong>Kumpulkan Poin:</strong> Kumpulkan poin & lencana juara!</div>
+                        </div>
+                    </div>
+
+                    <button onclick="markStationComplete('banyumanik'); showModal('Misi Selesai!', 'Kamu sudah memahami petunjuk permainan.', '👍', () => navigateTo('candisari'));" 
+                            class="btn-cartoon bg-emerald-500 hover:bg-emerald-400 text-white font-black py-3 px-8 rounded-2xl border-2 border-white text-base sm:text-lg">
+                        ▶ SIAP BERANGKAT!
+                    </button>
+                </div>
+            `;
+        }
+
+        function renderCandisari(container) {
+            container.innerHTML = `
+                <div class="max-w-3xl mx-auto bg-white rounded-3xl p-5 sm:p-7 border-4 border-amber-400 shadow-xl">
+                    <div class="text-center mb-4">
+                        <span class="bg-amber-100 text-amber-800 font-bold px-4 py-1 rounded-full text-xs sm:text-sm border border-amber-300">
+                            🚉 STASIUN CANDISARI
+                        </span>
+                        <h2 class="text-2xl sm:text-3xl font-black text-slate-800 mt-1">
+                            “Misi Mengungkap Rahasia Energi”
+                        </h2>
+                    </div>
+
+                    <div class="bg-amber-50 p-4 rounded-2xl border border-amber-200 mb-4 text-xs sm:text-sm text-slate-700 leading-relaxed">
+                        🔎 <em>“Kamu akan mencari tahu rahasia di balik semua hal yang dapat bergerak, berbunyi, atau menyala di sekitar. Kamu akan menemukan kekuatan tersembunyi yang bekerja setiap hari serta memahami dari mana asalnya.”</em>
+                    </div>
+
+                    <h3 class="font-bold text-slate-800 text-sm sm:text-base mb-2">🎯 Tujuan Pembelajaran:</h3>
+                    <ul class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs sm:text-sm text-slate-600 mb-6">
+                        <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-500"></i> Mengenal energi dan perubahannya</li>
+                        <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-500"></i> Mengidentifikasi bentuk energi sehari-hari</li>
+                        <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-500"></i> Memahami energi gerak, cahaya, & panas</li>
+                        <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-500"></i> Memahami energi bunyi, listrik, & kimia</li>
+                        <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-500"></i> Menghubungkan benda dengan energi</li>
+                        <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-500"></i> Sikap bijak menggunakan energi</li>
+                    </ul>
+
+                    <div class="text-center">
+                        <button onclick="markStationComplete('candisari'); showModal('Misi Candisari Selesai!', 'Tujuan pembelajaran telah dipahami!', '🎯', () => navigateTo('gajahmungkur'));" 
+                                class="btn-cartoon bg-sky-500 hover:bg-sky-400 text-white font-black py-3 px-8 rounded-2xl border-2 border-white text-base">
+                            🚆 MULAI MISI
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderGajahmungkur(container) {
+            let currentQ = 0;
+            let score = 0;
+
+            const questions = [
+                { q: "Ketika bola menggelinding di lantai, bola memiliki energi...", opt: ["A. Cahaya", "B. Gerak", "C. Bunyi", "D. Panas"], ans: 1 },
+                { q: "Lampu yang menyala menghasilkan energi...", opt: ["A. Cahaya", "B. Gerak", "C. Kimia", "D. Bunyi"], ans: 0 },
+                { q: "Saat tubuh merasakan hangat dari sinar matahari, kita merasakan energi...", opt: ["A. Bunyi", "B. Listrik", "C. Panas", "D. Gerak"], ans: 2 },
+                { q: "Suara peluit merupakan contoh energi...", opt: ["A. Cahaya", "B. Bunyi", "C. Kimia", "D. Panas"], ans: 1 },
+                { q: "Energi yang tersimpan dalam makanan disebut energi...", opt: ["A. Kimia", "B. Cahaya", "C. Bunyi", "D. Gerak"], ans: 0 }
+            ];
+
+            function renderQuizStep() {
+                if (currentQ >= questions.length) {
+                    GAME_STATE.pretestScore = score * 20;
+                    markStationComplete('gajahmungkur');
+                    awardPoints(score * 10);
+
+                    container.innerHTML = `
+                        <div class="max-w-md mx-auto bg-white rounded-3xl p-6 border-4 border-emerald-400 text-center shadow-xl">
+                            <div class="text-4xl mb-2">🔎</div>
+                            <h2 class="text-2xl font-black text-slate-800 mb-1">HASIL PENYELIDIKAN AWAL</h2>
+                            <p class="text-sm font-bold text-sky-700 mb-4">Masinis: ${GAME_STATE.playerName}</p>
+                            <div class="bg-emerald-50 p-4 rounded-2xl border border-emerald-200 mb-4">
+                                <div class="text-3xl font-black text-emerald-600">${GAME_STATE.pretestScore}%</div>
+                                <div class="text-xs text-slate-600 mt-1">Jawaban Benar: ${score} dari 5 Soal</div>
+                            </div>
+                            <p class="text-xs text-slate-600 mb-6">“Tidak apa-apa! Ini baru awal perjalanan. Yuk, belajar dan temukan rahasia energi!”</p>
+                            <button onclick="navigateTo('gayamsari')" class="btn-cartoon bg-emerald-500 hover:bg-emerald-400 text-white font-bold py-3 px-6 rounded-2xl border-2 border-white text-base">
+                                LANJUT PERJALANAN <i class="fa-solid fa-arrow-right"></i>
+                            </button>
+                        </div>
+                    `;
+                    return;
+                }
+
+                const item = questions[currentQ];
+                container.innerHTML = `
+                    <div class="max-w-xl mx-auto bg-white rounded-3xl p-6 border-4 border-sky-400 shadow-xl">
+                        <div class="flex justify-between items-center mb-4">
+                            <span class="bg-sky-100 text-sky-800 font-bold px-3 py-1 rounded-full text-xs">
+                                🚉 GAJAHMUNGKUR - SOAL ${currentQ + 1}/5
+                            </span>
+                            <span class="text-xs font-bold text-amber-600">🛠️ Cek Mesin Kereta!</span>
+                        </div>
+                        <h3 class="text-base sm:text-lg font-bold text-slate-800 mb-4">${item.q}</h3>
+                        <div class="grid grid-cols-1 gap-2.5 mb-6">
+                            ${item.opt.map((optText, i) => `
+                                <button onclick="checkPretestAns(${i})" class="btn-cartoon bg-slate-100 hover:bg-sky-100 border-2 border-slate-300 text-slate-800 font-bold p-3 rounded-2xl text-left text-sm">
+                                    ${optText}
+                                </button>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            window.checkPretestAns = function(idx) {
+                if (idx === questions[currentQ].ans) {
+                    audio.playCorrect();
+                    score++;
+                } else {
+                    audio.playWrong();
+                }
+                currentQ++;
+                renderQuizStep();
+            };
+
+            // Initial Registration View
+            container.innerHTML = `
+                <div class="max-w-md mx-auto bg-white rounded-3xl p-6 border-4 border-sky-400 shadow-xl text-center">
+                    <span class="bg-sky-100 text-sky-800 font-bold px-4 py-1 rounded-full text-xs border border-sky-300">
+                        🚉 STASIUN GAJAHMUNGKUR
+                    </span>
+                    <h2 class="text-2xl font-black text-slate-800 mt-2 mb-1">“Pemeriksaan Awal Masinis”</h2>
+                    <p class="text-xs text-slate-500 mb-4">Masukkan nama kamu sebelum memulai tes pemeriksaan awal kereta:</p>
+                    <input id="playerNameInput" type="text" value="${GAME_STATE.playerName}" placeholder="Masukkan Nama Kamu..." 
+                           class="w-full bg-slate-50 border-2 border-sky-300 rounded-2xl px-4 py-3 font-bold text-slate-800 text-center text-lg mb-6 focus:outline-none focus:border-amber-400" />
+                    <button onclick="submitNameAndStart()" class="btn-cartoon bg-amber-500 hover:bg-amber-400 text-white font-black py-3 px-8 rounded-2xl border-2 border-white text-base">
+                        🚆 MULAI PRETEST
+                    </button>
+                </div>
+            `;
+
+            window.submitNameAndStart = function() {
+                const input = document.getElementById('playerNameInput');
+                if (input.value.trim() !== '') {
+                    GAME_STATE.playerName = input.value.trim();
+                }
+                renderQuizStep();
+            };
+        }
+
+        function renderGayamsari(container) {
+            container.innerHTML = `
+                <div class="max-w-2xl mx-auto bg-white rounded-3xl p-6 sm:p-8 border-4 border-amber-400 shadow-xl text-center">
+                    <span class="bg-amber-100 text-amber-800 font-bold px-4 py-1 rounded-full text-xs border border-amber-300">
+                        🚉 STASIUN GAYAMSARI
+                    </span>
+                    <h2 class="text-2xl sm:text-3xl font-black text-slate-800 mt-2 mb-4">
+                        “Apa Rahasia di Balik Semua Ini?”
+                    </h2>
+
+                    <div class="grid grid-cols-5 gap-2 my-4">
+                        <div class="bg-sky-50 p-2 rounded-2xl border border-sky-200 text-2xl animate-bounce">🪁</div>
+                        <div class="bg-emerald-50 p-2 rounded-2xl border border-emerald-200 text-2xl animate-bounce" style="animation-delay: 0.1s">🧒</div>
+                        <div class="bg-yellow-50 p-2 rounded-2xl border border-yellow-200 text-2xl animate-bounce" style="animation-delay: 0.2s">🌀</div>
+                        <div class="bg-orange-50 p-2 rounded-2xl border border-orange-200 text-2xl animate-bounce" style="animation-delay: 0.3s">💡</div>
+                        <div class="bg-purple-50 p-2 rounded-2xl border border-purple-200 text-2xl animate-bounce" style="animation-delay: 0.4s">📯</div>
+                    </div>
+
+                    <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 text-xs sm:text-sm text-slate-700 leading-relaxed text-left space-y-2 mb-6">
+                        <p>“Pernahkah kamu menarik benang layangan, melompat-lompat di permainan engklek, atau memutar gasing sampai berputar kencang?”</p>
+                        <p>“Lalu, apa yang membuat lampu dapat menyala dan peluit berbunyi nyaring?”</p>
+                        <p class="font-bold text-amber-600">“Semua itu terjadi karena adanya kekuatan tenaga yang dalam sains disebut ENERGI!”</p>
+                    </div>
+
+                    <button onclick="markStationComplete('gayamsari'); showModal('Misi Selesai!', 'Rahasia awal energi terungkap!', '💡', () => navigateTo('genuk'));" 
+                            class="btn-cartoon bg-amber-500 hover:bg-amber-400 text-white font-black py-3 px-8 rounded-2xl border-2 border-white text-base">
+                        🔎 CARI TAHU!
+                    </button>
+                </div>
+            `;
+        }
+
+        function renderGenuk(container) {
+            const items = [
+                { id: 1, name: '💡 Lampu', target: '☀️ Cahaya' },
+                { id: 2, name: '🔔 Bel sekolah', target: '🔊 Bunyi' },
+                { id: 3, name: '🔥 Kompor', target: '🌡️ Panas' },
+                { id: 4, name: '🔋 Baterai', target: '⚡ Listrik' },
+                { id: 5, name: '🍚 Makanan', target: '🔋 Energi Kimia' }
+            ];
+
+            let selectedItem = null;
+            let matchedCount = 0;
+
+            container.innerHTML = `
+                <div class="max-w-2xl mx-auto bg-white rounded-3xl p-5 border-4 border-sky-400 shadow-xl text-center">
+                    <span class="bg-sky-100 text-sky-800 font-bold px-4 py-1 rounded-full text-xs">
+                        🚉 STASIUN GENUK
+                    </span>
+                    <h2 class="text-2xl font-black text-slate-800 mt-1 mb-1">“Jadilah Detektif Energi!”</h2>
+                    <p class="text-xs text-slate-500 mb-4">Klik benda di sebelah kiri, lalu klik energi pasangannya di sebelah kanan!</p>
+
+                    <div class="grid grid-cols-2 gap-4 text-left text-xs sm:text-sm mb-6">
+                        <div id="sourceColumn" class="space-y-2">
+                            ${items.map(it => `
+                                <button id="src-${it.id}" onclick="selectSource(${it.id})" class="w-full bg-slate-100 hover:bg-sky-50 border-2 border-slate-300 font-bold p-3 rounded-2xl flex items-center justify-between">
+                                    <span>${it.name}</span>
+                                    <i class="fa-solid fa-hand-pointer text-slate-400"></i>
+                                </button>
+                            `).join('')}
+                        </div>
+                        <div id="targetColumn" class="space-y-2">
+                            ${[...items].sort(() => Math.random() - 0.5).map(it => `
+                                <button id="target-${it.target.replace(/\s+/g, '')}" onclick="selectTarget('${it.target}')" class="w-full bg-slate-100 hover:bg-emerald-50 border-2 border-slate-300 font-bold p-3 rounded-2xl text-center">
+                                    ${it.target}
+                                </button>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            window.selectSource = function(id) {
+                audio.playClick();
+                selectedItem = items.find(i => i.id === id);
+                items.forEach(i => {
+                    const btn = document.getElementById(`src-${i.id}`);
+                    if (btn) btn.classList.remove('border-amber-500', 'bg-amber-100');
+                });
+                const activeBtn = document.getElementById(`src-${id}`);
+                if (activeBtn) activeBtn.classList.add('border-amber-500', 'bg-amber-100');
+            };
+
+            window.selectTarget = function(targetText) {
+                if (!selectedItem) return;
+                if (selectedItem.target === targetText) {
+                    audio.playCorrect();
+                    awardPoints(10);
+                    matchedCount++;
+                    const sBtn = document.getElementById(`src-${selectedItem.id}`);
+                    const tBtn = document.getElementById(`target-${targetText.replace(/\s+/g, '')}`);
+                    if (sBtn) sBtn.classList.add('opacity-40', 'pointer-events-none', 'bg-emerald-200');
+                    if (tBtn) tBtn.classList.add('opacity-40', 'pointer-events-none', 'bg-emerald-200');
+                    selectedItem = null;
+
+                    if (matchedCount === items.length) {
+                        markStationComplete('genuk');
+                        showModal('🎉 Detektif Hebat!', 'Kamu menemukan semua pasangan energi! (+50 Poin)', '🔎', () => navigateTo('gunungpati'));
+                    }
+                } else {
+                    audio.playWrong();
+                }
+            };
+        }
+
+        function renderGunungpati(container) {
+            const cards = [
+                { title: '🏃 Energi Gerak', desc: 'Ada saat benda bergerak/berpindah tempat. Contoh: bola menggelinding, sepeda.', bg: 'bg-emerald-50 border-emerald-300' },
+                { title: '☀️ Energi Cahaya', desc: 'Dipancarkan oleh sumber cahaya untuk menerangi. Contoh: matahari, lampu, senter.', bg: 'bg-yellow-50 border-yellow-300' },
+                { title: '🔥 Energi Panas', desc: 'Menghasilkan hangat/panas yang menaikkan suhu. Contoh: api kompor, jemuran.', bg: 'bg-orange-50 border-orange-300' },
+                { title: '🔊 Energi Bunyi', desc: 'Dihasilkan oleh benda yang bergetar. Merambat di udara. Contoh: drum, bel.', bg: 'bg-purple-50 border-purple-300' },
+                { title: '⚡ Energi Listrik', desc: 'Mengalir lewat kabel untuk menyalakan alat elektronik. Contoh: Kipas, TV.', bg: 'bg-sky-50 border-sky-300' },
+                { title: '🔋 Energi Kimia', desc: 'Tersimpan dalam bahan makanan, baterai, & bahan bakar.', bg: 'bg-rose-50 border-rose-300' }
+            ];
+
+            let openedCards = new Set();
+
+            container.innerHTML = `
+                <div class="max-w-3xl mx-auto bg-white rounded-3xl p-5 border-4 border-emerald-400 shadow-xl text-center">
+                    <span class="bg-emerald-100 text-emerald-800 font-bold px-4 py-1 rounded-full text-xs">
+                        🚉 STASIUN GUNUNGPATI
+                    </span>
+                    <h2 class="text-2xl font-black text-slate-800 mt-1 mb-1">“Energi Banyak Bentuknya!”</h2>
+                    <p class="text-xs text-slate-500 mb-4">Klik setiap kartu di bawah ini untuk mengungkap penjelasannya!</p>
+
+                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
+                        ${cards.map((c, idx) => `
+                            <div onclick="flipCard(${idx})" class="cursor-pointer h-28 bg-white rounded-2xl border-2 ${c.bg} p-3 flex flex-col items-center justify-center shadow-md hover:scale-105 transition-all text-center">
+                                <h3 class="font-bold text-slate-800 text-xs sm:text-sm mb-1">${c.title}</h3>
+                                <p id="cardDesc-${idx}" class="text-[11px] text-slate-600 hidden">${c.desc}</p>
+                                <span id="cardBadge-${idx}" class="text-[10px] font-bold text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-full mt-1">Klik untuk Buka</span>
+                            </div>
+                        `).join('')}
+                    </div>
+
+                    <button id="finishGunungpatiBtn" onclick="finishGunungpati()" class="btn-cartoon bg-slate-300 text-slate-600 font-black py-3 px-8 rounded-2xl border-2 border-white text-base pointer-events-none">
+                        PELAJARI SEMUA KARTU DAHULU
+                    </button>
+                </div>
+            `;
+
+            window.flipCard = function(idx) {
+                audio.playClick();
+                openedCards.add(idx);
+                document.getElementById(`cardDesc-${idx}`).classList.remove('hidden');
+                document.getElementById(`cardBadge-${idx}`).innerText = '✅ Dipelajari';
+                document.getElementById(`cardBadge-${idx}`).className = 'text-[10px] font-bold text-emerald-700 bg-emerald-200 px-2 py-0.5 rounded-full mt-1';
+
+                if (openedCards.size === cards.length) {
+                    const btn = document.getElementById('finishGunungpatiBtn');
+                    btn.className = 'btn-cartoon bg-emerald-500 hover:bg-emerald-400 text-white font-black py-3 px-8 rounded-2xl border-2 border-white text-base';
+                    btn.innerText = 'LANJUT KE MIJEN ▶';
+                    btn.style.pointerEvents = 'auto';
+                }
+            };
+
+            window.finishGunungpati = function() {
+                markStationComplete('gunungpati');
+                showModal('Hebat!', 'Kamu sudah mempelajari 6 bentuk energi!', '🧠', () => navigateTo('mijen'));
+            };
+        }
+
+        function renderMijen(container) {
+            container.innerHTML = `
+                <div class="max-w-2xl mx-auto bg-white rounded-3xl p-6 border-4 border-emerald-400 shadow-xl text-center">
+                    <span class="bg-emerald-100 text-emerald-800 font-bold px-4 py-1 rounded-full text-xs">
+                        🚉 STASIUN MIJEN
+                    </span>
+                    <h2 class="text-2xl font-black text-slate-800 mt-1 mb-2">🏃 ENERGI GERAK (KINETIK)</h2>
+                    <p class="text-xs sm:text-sm text-slate-600 mb-4">
+                        Energi gerak ada saat suatu benda bergerak atau berpindah tempat. Makin cepat geraknya, makin besar energinya!
+                    </p>
+
+                    <div class="bg-emerald-50 p-4 rounded-2xl border border-emerald-200 mb-6">
+                        <h3 class="font-bold text-slate-800 text-xs sm:text-sm mb-3">MINI-GAME: "Mana yang Sedang Bergerak?"</h3>
+                        <div class="grid grid-cols-3 gap-3">
+                            <button onclick="checkMijen(true, this)" class="btn-cartoon bg-white p-3 rounded-2xl border-2 border-emerald-300 text-center">
+                                <div class="text-3xl mb-1">⚽</div>
+                                <div class="text-xs font-bold text-slate-700">Bola Menggelinding</div>
+                            </button>
+                            <button onclick="checkMijen(false, this)" class="btn-cartoon bg-white p-3 rounded-2xl border-2 border-slate-300 text-center">
+                                <div class="text-3xl mb-1">🪨</div>
+                                <div class="text-xs font-bold text-slate-700">Batu Diam</div>
+                            </button>
+                            <button onclick="checkMijen(true, this)" class="btn-cartoon bg-white p-3 rounded-2xl border-2 border-emerald-300 text-center">
+                                <div class="text-3xl mb-1">🚲</div>
+                                <div class="text-xs font-bold text-slate-700">Sepeda Dikayuh</div>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            window.checkMijen = function(isCorrect, btn) {
+                if (isCorrect) {
+                    audio.playCorrect();
+                    awardPoints(10);
+                    markStationComplete('mijen');
+                    showModal('Benar!', 'Benda tersebut sedang memanfaatkan Energi Gerak!', '⚽', () => navigateTo('ngaliyan'));
+                } else {
+                    audio.playWrong();
+                }
+            };
+        }
+
+        function renderNgaliyan(container) {
+            container.innerHTML = `
+                <div class="max-w-2xl mx-auto bg-white rounded-3xl p-6 border-4 border-yellow-400 shadow-xl text-center">
+                    <span class="bg-yellow-100 text-yellow-800 font-bold px-4 py-1 rounded-full text-xs">
+                        🚉 STASIUN NGALIYAN
+                    </span>
+                    <h2 class="text-2xl font-black text-slate-800 mt-1 mb-2">☀️ ENERGI CAHAYA</h2>
+                    <p class="text-xs sm:text-sm text-slate-600 mb-4">
+                        Energi cahaya dipancarkan oleh sumber cahaya untuk membantu kita melihat dunia di sekitar!
+                    </p>
+
+                    <div class="bg-yellow-50 p-4 rounded-2xl border border-yellow-200 mb-6">
+                        <h3 class="font-bold text-slate-800 text-xs sm:text-sm mb-3">MINI-GAME: "Pilih Sumber Cahaya Alami Terbesar!"</h3>
+                        <div class="grid grid-cols-3 gap-3">
+                            <button onclick="checkNgaliyan(true)" class="btn-cartoon bg-white p-3 rounded-2xl border-2 border-yellow-300 text-center">
+                                <div class="text-3xl mb-1">☀️</div>
+                                <div class="text-xs font-bold text-slate-700">Matahari</div>
+                            </button>
+                            <button onclick="checkNgaliyan(false)" class="btn-cartoon bg-white p-3 rounded-2xl border-2 border-slate-300 text-center">
+                                <div class="text-3xl mb-1">📚</div>
+                                <div class="text-xs font-bold text-slate-700">Buku Pelajaran</div>
+                            </button>
+                            <button onclick="checkNgaliyan(false)" class="btn-cartoon bg-white p-3 rounded-2xl border-2 border-slate-300 text-center">
+                                <div class="text-3xl mb-1">🪑</div>
+                                <div class="text-xs font-bold text-slate-700">Kursi Kayu</div>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            window.checkNgaliyan = function(isCorrect) {
+                if (isCorrect) {
+                    audio.playCorrect();
+                    awardPoints(10);
+                    markStationComplete('ngaliyan');
+                    showModal('Tepat Sekali!', 'Matahari adalah sumber energi cahaya utama di bumi!', '☀️', () => navigateTo('pedurungan'));
+                } else {
+                    audio.playWrong();
+                }
+            };
+        }
+
+        function renderPedurungan(container) {
+            container.innerHTML = `
+                <div class="max-w-2xl mx-auto bg-white rounded-3xl p-6 border-4 border-orange-400 shadow-xl text-center">
+                    <span class="bg-orange-100 text-orange-800 font-bold px-4 py-1 rounded-full text-xs">
+                        🚉 STASIUN PEDURUNGAN
+                    </span>
+                    <h2 class="text-2xl font-black text-slate-800 mt-1 mb-2">🔥 ENERGI PANAS</h2>
+                    <p class="text-xs sm:text-sm text-slate-600 mb-4">
+                        Energi panas menaikkan suhu benda. Manfaatnya: memasak, mengeringkan pakaian, dan menghangatkan tubuh.
+                    </p>
+
+                    <div class="bg-orange-50 p-4 rounded-2xl border border-orange-200 mb-6">
+                        <h3 class="font-bold text-slate-800 text-xs sm:text-sm mb-3">MINI-GAME: "Mana yang Menggunakan Energi Panas?"</h3>
+                        <div class="grid grid-cols-2 gap-3">
+                            <button onclick="checkPedurungan(true)" class="btn-cartoon bg-white p-3 rounded-2xl border-2 border-orange-300 text-center flex items-center gap-3">
+                                <div class="text-3xl">🍳</div>
+                                <div class="text-left text-xs font-bold text-slate-700">Memasak di Kompor Api</div>
+                            </button>
+                            <button onclick="checkPedurungan(false)" class="btn-cartoon bg-white p-3 rounded-2xl border-2 border-slate-300 text-center flex items-center gap-3">
+                                <div class="text-3xl">🧊</div>
+                                <div class="text-left text-xs font-bold text-slate-700">Es Batu dalam Gelas</div>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            window.checkPedurungan = function(isCorrect) {
+                if (isCorrect) {
+                    audio.playCorrect();
+                    awardPoints(10);
+                    markStationComplete('pedurungan');
+                    showModal('Hebat!', 'Api kompor menghasilkan energi panas untuk memasak!', '🔥', () => navigateTo('semarang_barat'));
+                } else {
+                    audio.playWrong();
+                }
+            };
+        }
+
+        function renderSemarangBarat(container) {
+            container.innerHTML = `
+                <div class="max-w-2xl mx-auto bg-white rounded-3xl p-6 border-4 border-purple-400 shadow-xl text-center">
+                    <span class="bg-purple-100 text-purple-800 font-bold px-4 py-1 rounded-full text-xs">
+                        🚉 STASIUN SEMARANG BARAT
+                    </span>
+                    <h2 class="text-2xl font-black text-slate-800 mt-1 mb-2">🔊 ENERGI BUNYI</h2>
+                    <p class="text-xs sm:text-sm text-slate-600 mb-4">
+                        Energi bunyi dihasilkan oleh benda yang bergetar. Getarannya merambat lewat udara ke telinga kita.
+                    </p>
+
+                    <div class="bg-purple-50 p-4 rounded-2xl border border-purple-200 mb-6">
+                        <h3 class="font-bold text-slate-800 text-xs sm:text-sm mb-3">MINI-GAME: "Tekan Tombol Peluit Kereta!"</h3>
+                        <button onclick="audio.playWhistle(); finishSemarangBarat();" class="btn-cartoon bg-purple-500 hover:bg-purple-400 text-white font-black py-4 px-8 rounded-2xl border-2 border-white text-lg animate-pulse">
+                            📯 TIUP PELUIT KERETA!
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            window.finishSemarangBarat = function() {
+                awardPoints(10);
+                markStationComplete('semarang_barat');
+                showModal('Tuuuut! 🚆', 'Peluit kereta yang bergetar menghasilkan Energi Bunyi nyaring!', '🔊', () => navigateTo('semarang_selatan'));
+            };
+        }
+
+        function renderSemarangSelatan(container) {
+            let switchOn = false;
+
+            container.innerHTML = `
+                <div class="max-w-2xl mx-auto bg-white rounded-3xl p-6 border-4 border-sky-400 shadow-xl text-center">
+                    <span class="bg-sky-100 text-sky-800 font-bold px-4 py-1 rounded-full text-xs">
+                        🚉 STASIUN SEMARANG SELATAN
+                    </span>
+                    <h2 class="text-2xl font-black text-slate-800 mt-1 mb-2">⚡ ENERGI LISTRIK</h2>
+                    <p class="text-xs sm:text-sm text-slate-600 mb-4">
+                        Energi listrik mengalir melalui kabel untuk menyalakan berbagai peralatan di kota!
+                    </p>
+
+                    <div class="bg-slate-900 p-6 rounded-2xl border-2 border-sky-300 mb-6 flex flex-col items-center">
+                        <div id="lightBulb" class="text-6xl mb-4 text-slate-600 transition-all duration-300">💡</div>
+                        <p id="bulbStatus" class="text-xs text-slate-400 mb-4">Lampu Kota Padam. Sambungkan saklar listrik!</p>
+                        <button id="switchBtn" onclick="toggleCircuit()" class="btn-cartoon bg-amber-500 hover:bg-amber-400 text-white font-bold py-2.5 px-6 rounded-xl text-sm border">
+                            🔌 TEKAN SAKLAR LISTRIK
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            window.toggleCircuit = function() {
+                switchOn = !switchOn;
+                const bulb = document.getElementById('lightBulb');
+                const status = document.getElementById('bulbStatus');
+
+                if (switchOn) {
+                    audio.playCorrect();
+                    bulb.className = 'text-6xl mb-4 text-yellow-300 drop-shadow-[0_0_25px_rgba(253,224,71,1)] scale-110';
+                    status.innerText = '⚡ Listrik Mengalir! Lampu Kota Menyala Terang!';
+                    awardPoints(10);
+                    markStationComplete('semarang_selatan');
+                    setTimeout(() => {
+                        showModal('Kota Menyala!', 'Energi listrik berhasil menyalakan lampu!', '⚡', () => navigateTo('semarang_tengah'));
+                    }, 800);
+                }
+            };
+        }
+
+        function renderSemarangTengah(container) {
+            container.innerHTML = `
+                <div class="max-w-2xl mx-auto bg-white rounded-3xl p-6 border-4 border-rose-400 shadow-xl text-center">
+                    <span class="bg-rose-100 text-rose-800 font-bold px-4 py-1 rounded-full text-xs">
+                        🚉 STASIUN SEMARANG TENGAH
+                    </span>
+                    <h2 class="text-2xl font-black text-slate-800 mt-1 mb-2">🔋 ENERGI KIMIA</h2>
+                    <p class="text-xs sm:text-sm text-slate-600 mb-4">
+                        Energi kimia tersimpan di dalam makanan, baterai, dan bahan bakar kendaraan.
+                    </p>
+
+                    <div class="bg-rose-50 p-4 rounded-2xl border border-rose-200 mb-6">
+                        <h3 class="font-bold text-slate-800 text-xs sm:text-sm mb-3">MINI-GAME: "Di Mana Energi Kimia Tersimpan?"</h3>
+                        <div class="grid grid-cols-3 gap-3">
+                            <button onclick="checkSemarangTengah(true)" class="btn-cartoon bg-white p-3 rounded-2xl border-2 border-rose-300 text-center">
+                                <div class="text-3xl mb-1">🍚</div>
+                                <div class="text-xs font-bold text-slate-700">Nasi & Makanan</div>
+                            </button>
+                            <button onclick="checkSemarangTengah(true)" class="btn-cartoon bg-white p-3 rounded-2xl border-2 border-rose-300 text-center">
+                                <div class="text-3xl mb-1">🔋</div>
+                                <div class="text-xs font-bold text-slate-700">Baterai Mainan</div>
+                            </button>
+                            <button onclick="checkSemarangTengah(false)" class="btn-cartoon bg-white p-3 rounded-2xl border-2 border-slate-300 text-center">
+                                <div class="text-3xl mb-1">🧱</div>
+                                <div class="text-xs font-bold text-slate-700">Batu Tumpuk</div>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            window.checkSemarangTengah = function(isCorrect) {
+                if (isCorrect) {
+                    audio.playCorrect();
+                    awardPoints(10);
+                    markStationComplete('semarang_tengah');
+                    showModal('Benar Sekali!', 'Makanan & Baterai menyimpan energi kimia!', '🔋', () => navigateTo('semarang_timur'));
+                } else {
+                    audio.playWrong();
+                }
+            };
+        }
+
+        function renderSemarangTimur(container) {
+            const pairsData = [
+                { id: 1, type: 'text', name: 'Energi Gerak', matchId: 101 },
+                { id: 101, type: 'icon', name: '🏃 Bola Berputar', matchId: 1 },
+                { id: 2, type: 'text', name: 'Energi Cahaya', matchId: 102 },
+                { id: 102, type: 'icon', name: '💡 Lampu Menyala', matchId: 2 },
+                { id: 3, type: 'text', name: 'Energi Panas', matchId: 103 },
+                { id: 103, type: 'icon', name: '🔥 Api Kompor', matchId: 3 },
+                { id: 4, type: 'text', name: 'Energi Bunyi', matchId: 104 },
+                { id: 104, type: 'icon', name: '🥁 Suara Drum', matchId: 4 },
+                { id: 5, type: 'text', name: 'Energi Listrik', matchId: 105 },
+                { id: 105, type: 'icon', name: '⚡ Listrik Kabel', matchId: 5 },
+                { id: 6, type: 'text', name: 'Energi Kimia', matchId: 106 },
+                { id: 106, type: 'icon', name: '🔋 Makanan & Baterai', matchId: 6 }
+            ];
+
+            let shuffled = [...pairsData].sort(() => Math.random() - 0.5);
+            let firstCard = null;
+            let matchedPairs = 0;
+            let isBoardLocked = false;
+
+            container.innerHTML = `
+                <div class="max-w-2xl mx-auto bg-white rounded-3xl p-5 border-4 border-sky-400 shadow-xl text-center">
+                    <span class="bg-sky-100 text-sky-800 font-bold px-4 py-1 rounded-full text-xs">
+                        🚉 STASIUN SEMARANG TIMUR
+                    </span>
+                    <h2 class="text-2xl font-black text-slate-800 mt-1 mb-1">🃏 DETEKTIF ENERGI - MEMORY MATCH</h2>
+                    <p class="text-xs text-slate-500 mb-4">Buka dua kartu dan temukan pasangan bentuk energinya!</p>
+
+                    <div class="grid grid-cols-4 gap-2 mb-4">
+                        ${shuffled.map((card, idx) => `
+                            <button id="memCard-${idx}" onclick="flipMemCard(${idx})" class="btn-cartoon h-20 bg-sky-500 border-2 border-white rounded-2xl flex items-center justify-center text-white font-bold text-xs p-1 text-center">
+                                <span class="card-back text-2xl">❓</span>
+                                <span class="card-front hidden">${card.name}</span>
+                            </button>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+
+            window.flipMemCard = function(idx) {
+                if (isBoardLocked) return;
+
+                const cardObj = shuffled[idx];
+                const btn = document.getElementById(`memCard-${idx}`);
+                if (!btn) return;
+
+                const back = btn.querySelector('.card-back');
+                const front = btn.querySelector('.card-front');
+
+                if (btn.classList.contains('matched') || btn === firstCard?.btn) return;
+
+                audio.playClick();
+                back.classList.add('hidden');
+                front.classList.remove('hidden');
+                btn.classList.replace('bg-sky-500', 'bg-amber-400');
+
+                if (!firstCard) {
+                    firstCard = { idx, obj: cardObj, btn };
+                } else {
+                    const card1 = firstCard;
+                    const card2Btn = btn;
+
+                    if (card1.obj.matchId === cardObj.id) {
+                        audio.playCorrect();
+                        card2Btn.classList.add('matched', 'bg-emerald-400');
+                        card1.btn.classList.add('matched', 'bg-emerald-400');
+                        matchedPairs++;
+                        firstCard = null;
+
+                        if (matchedPairs === 6) {
+                            awardPoints(60);
+                            markStationComplete('semarang_timur');
+                            showModal('Memory Match Selesai!', 'Kamu mencocokkan semua kartu energi! (+60 Poin)', '🃏', () => navigateTo('semarang_utara'));
+                        }
+                    } else {
+                        audio.playWrong();
+                        isBoardLocked = true;
+                        firstCard = null;
+
+                        setTimeout(() => {
+                            if (card2Btn) {
+                                card2Btn.querySelector('.card-back')?.classList.remove('hidden');
+                                card2Btn.querySelector('.card-front')?.classList.add('hidden');
+                                card2Btn.classList.replace('bg-amber-400', 'bg-sky-500');
+                            }
+
+                            if (card1?.btn) {
+                                card1.btn.querySelector('.card-back')?.classList.remove('hidden');
+                                card1.btn.querySelector('.card-front')?.classList.add('hidden');
+                                card1.btn.classList.replace('bg-amber-400', 'bg-sky-500');
+                            }
+                            isBoardLocked = false;
+                        }, 800);
+                    }
+                }
+            };
+        }
+
+        function renderSemarangUtara(container) {
+            let currentQ = 0;
+            let correctAnsCount = 0;
+
+            const evalQuestions = [
+                { q: "1. Bola yang bergerak menggelinding di lapangan memiliki energi...", opt: ["Panas", "Gerak", "Cahaya", "Bunyi"], ans: 1 },
+                { q: "2. Lampu kamar yang dinyalakan menghasilkan energi...", opt: ["Cahaya", "Kimia", "Bunyi", "Gerak"], ans: 0 },
+                { q: "3. Mana benda berikut yang memanfaatkan energi panas?", opt: ["Kipas Angin", "Gitar", "Kompor Api", "Baterai"], ans: 2 },
+                { q: "4. Suara alat musik drum berasal dari energi...", opt: ["Listrik", "Bunyi", "Panas", "Kimia"], ans: 1 },
+                { q: "5. Alat elektronik seperti televisi menyala dengan energi...", opt: ["Listrik", "Cahaya", "Gerak", "Panas"], ans: 0 },
+                { q: "6. Energi yang tersimpan dalam nasi dan makanan adalah energi...", opt: ["Kimia", "Bunyi", "Gerak", "Cahaya"], ans: 0 },
+                { q: "7. Benar atau Salah: Bola yang diam memiliki energi gerak.", opt: ["Benar", "Salah"], ans: 1 },
+                { q: "8. Sumber energi cahaya terbesar bagi bumi di siang hari adalah...", opt: ["Lilin", "Matahari", "Senter", "Lampu"], ans: 1 },
+                { q: "9. Getaran pada bel sekolah menghasilkan energi...", opt: ["Bunyi", "Panas", "Kimia", "Gerak"], ans: 0 },
+                { q: "10. Baterai pada mainan mobil menyimpan energi...", opt: ["Kimia", "Cahaya", "Panas", "Bunyi"], ans: 0 }
+            ];
+
+            function renderEvalQuestion() {
+                if (currentQ >= evalQuestions.length) {
+                    const finalScore = correctAnsCount * 10;
+                    GAME_STATE.evalScore = finalScore;
+                    awardPoints(finalScore);
+                    markStationComplete('semarang_utara');
+
+                    let category = "MASINIS PEMULA!";
+                    if (finalScore >= 90) category = "MASINIS ENERGI HEBAT! 🏆";
+                    else if (finalScore >= 80) category = "MASINIS ENERGI CERDAS! 🌟";
+                    else if (finalScore >= 70) category = "MASINIS ENERGI ANDAL! 👏";
+
+                    container.innerHTML = `
+                        <div class="max-w-md mx-auto bg-white rounded-3xl p-6 border-4 border-amber-400 shadow-xl text-center">
+                            <div class="text-4xl mb-2">🏆</div>
+                            <h2 class="text-2xl font-black text-slate-800 mb-1">EVALUASI SELESAI!</h2>
+                            <p class="text-sm font-bold text-sky-700 mb-2">${GAME_STATE.playerName}</p>
+                            <div class="bg-amber-50 p-4 rounded-2xl border border-amber-200 mb-4">
+                                <div class="text-4xl font-black text-amber-600">${finalScore}/100</div>
+                                <div class="text-xs font-bold text-amber-800 mt-1">${category}</div>
+                            </div>
+                            <button onclick="navigateTo('tembalang')" class="btn-cartoon bg-emerald-500 hover:bg-emerald-400 text-white font-bold py-3 px-6 rounded-2xl border-2 border-white text-base">
+                                LANJUT KE REFLEKSI SISWA <i class="fa-solid fa-arrow-right"></i>
+                            </button>
+                        </div>
+                    `;
+                    return;
+                }
+
+                const qObj = evalQuestions[currentQ];
+                container.innerHTML = `
+                    <div class="max-w-xl mx-auto bg-white rounded-3xl p-6 border-4 border-sky-400 shadow-xl">
+                        <div class="flex justify-between items-center mb-3">
+                            <span class="bg-sky-100 text-sky-800 font-bold px-3 py-1 rounded-full text-xs">
+                                🚉 SEMARANG UTARA - UJIAN (${currentQ + 1}/10)
+                            </span>
+                        </div>
+                        <h3 class="text-base font-bold text-slate-800 mb-4">${qObj.q}</h3>
+                        <div class="grid grid-cols-1 gap-2.5 mb-4">
+                            ${qObj.opt.map((oText, i) => `
+                                <button onclick="answerEval(${i})" class="btn-cartoon bg-slate-50 hover:bg-sky-100 border-2 border-slate-300 text-slate-800 font-bold p-3 rounded-2xl text-left text-sm">
+                                    ${oText}
+                                </button>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            window.answerEval = function(selectedIdx) {
+                if (selectedIdx === evalQuestions[currentQ].ans) {
+                    audio.playCorrect();
+                    correctAnsCount++;
+                } else {
+                    audio.playWrong();
+                }
+                currentQ++;
+                renderEvalQuestion();
+            };
+
+            renderEvalQuestion();
+        }
+
+        function renderTembalang(container) {
+            container.innerHTML = `
+                <div class="max-w-2xl mx-auto bg-white rounded-3xl p-6 border-4 border-purple-400 shadow-xl">
+                    <div class="text-center mb-4">
+                        <span class="bg-purple-100 text-purple-800 font-bold px-4 py-1 rounded-full text-xs">
+                            🚉 STASIUN TEMBALANG
+                        </span>
+                        <h2 class="text-2xl font-black text-slate-800 mt-1">💭 Refleksi Masinis Cilik</h2>
+                    </div>
+
+                    <div class="space-y-4 text-xs sm:text-sm text-slate-700">
+                        <div>
+                            <label class="font-bold block mb-1">1. Bagaimana perasaanmu belajar energi?</label>
+                            <div class="flex gap-2">
+                                <button onclick="selectReflectEmoji(this)" class="btn-cartoon bg-slate-100 p-2.5 rounded-xl border flex-1 text-center text-xl">😀 Sangat Senang</button>
+                                <button onclick="selectReflectEmoji(this)" class="btn-cartoon bg-slate-100 p-2.5 rounded-xl border flex-1 text-center text-xl">🙂 Senang</button>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="font-bold block mb-1">2. Contoh sikap bijak menggunakan energi listrik:</label>
+                            <div class="space-y-1">
+                                <label class="flex items-center gap-2"><input type="checkbox" checked class="w-4 h-4 text-emerald-600 rounded"> Mematikan lampu jika tidak digunakan</label>
+                                <label class="flex items-center gap-2"><input type="checkbox" checked class="w-4 h-4 text-emerald-600 rounded"> Menggunakan listrik seperlunya</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="text-center mt-6">
+                        <button onclick="markStationComplete('tembalang'); showModal('Refleksi Tersimpan!', 'Terima kasih atas refleksimu, Masinis!', '💭', () => navigateTo('tugu'));" 
+                                class="btn-cartoon bg-purple-500 hover:bg-purple-400 text-white font-black py-3 px-8 rounded-2xl border-2 border-white text-base">
+                            KIRIM REFLEKSI & KE TUGU ▶
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            window.selectReflectEmoji = function(btn) {
+                audio.playClick();
+                btn.parentElement.querySelectorAll('button').forEach(b => b.classList.remove('bg-purple-200', 'border-purple-500'));
+                btn.classList.add('bg-purple-200', 'border-purple-500');
+            };
+        }
+
+        function renderTugu(container) {
+            markStationComplete('tugu');
+
+            // Save to localStorage
+            let scoresData = JSON.parse(localStorage.getItem('semarang_city_trains_scores') || '[]');
+            const existingIdx = scoresData.findIndex(s => s.name === GAME_STATE.playerName);
+            if (existingIdx >= 0) {
+                scoresData[existingIdx].score = Math.max(scoresData[existingIdx].score, GAME_STATE.score);
+            } else {
+                scoresData.push({ name: GAME_STATE.playerName, score: GAME_STATE.score, stars: '⭐⭐⭐⭐⭐' });
+            }
+            scoresData.sort((a, b) => b.score - a.score);
+            localStorage.setItem('semarang_city_trains_scores', JSON.stringify(scoresData));
+
+            container.innerHTML = `
+                <div class="max-w-2xl mx-auto bg-white rounded-3xl p-6 border-4 border-amber-400 shadow-xl text-center">
+                    <span class="bg-amber-100 text-amber-800 font-bold px-4 py-1 rounded-full text-xs">
+                        🚉 STASIUN TUGU (AKHIR PETUALANGAN)
+                    </span>
+                    <h2 class="text-2xl font-black text-slate-800 mt-1 mb-3">🏆 PAPAN SKOR MASINIS CILIK</h2>
+
+                    <!-- Badges Row -->
+                    <div class="flex justify-center gap-2 mb-4">
+                        ${Array.from(GAME_STATE.badges).map(b => `
+                            <span class="bg-amber-100 text-amber-800 text-[10px] font-bold px-2.5 py-1 rounded-full border border-amber-300">
+                                🎖️ ${b.replace('_', ' ')}
+                            </span>
+                        `).join('')}
+                    </div>
+
+                    <!-- Leaderboard Table -->
+                    <div class="bg-slate-50 rounded-2xl border border-slate-200 overflow-hidden mb-6 text-xs sm:text-sm">
+                        <table class="w-full text-left">
+                            <thead class="bg-amber-400 text-slate-900 font-bold">
+                                <tr>
+                                    <th class="p-3">Peringkat</th>
+                                    <th class="p-3">Masinis</th>
+                                    <th class="p-3 text-right">Skor Total</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-200">
+                                ${scoresData.slice(0, 5).map((row, idx) => `
+                                    <tr class="${row.name === GAME_STATE.playerName ? 'bg-amber-100 font-bold' : ''}">
+                                        <td class="p-3">${idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `#${idx+1}`}</td>
+                                        <td class="p-3">${row.name}</td>
+                                        <td class="p-3 text-right font-black text-sky-700">${row.score} Poin</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="flex flex-wrap justify-center gap-3">
+                        <button onclick="resetGameData()" class="btn-cartoon bg-rose-500 hover:bg-rose-400 text-white font-bold py-2.5 px-5 rounded-2xl border-2 border-white text-xs sm:text-sm">
+                            🗑️ HAPUS DATA SKOR
+                        </button>
+                        <button onclick="navigateTo('opening')" class="btn-cartoon bg-amber-500 hover:bg-amber-400 text-white font-bold py-2.5 px-5 rounded-2xl border-2 border-white text-xs sm:text-sm">
+                            🔄 MAIN LAGI
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            window.resetGameData = function() {
+                if (confirm('Apakah kamu yakin ingin menghapus seluruh papan skor?')) {
+                    localStorage.removeItem('semarang_city_trains_scores');
+                    renderTugu(container);
+                }
+            };
+        }
+
+        window.onload = function() {
+            navigateTo('opening');
+        };
+    </script>
+</body>
+</html>
